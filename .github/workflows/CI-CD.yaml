@@ -19,24 +19,22 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Create and start virtual environment
-        run: |
-          python -m venv venv
-          source venv/bin/activate
-
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
+      - name: Build Docker image
+        run: |
+          docker build -t myapp:latest .
 
-      - name: Upload artifact for deployment jobs
-        uses: actions/upload-artifact@v4
+      - name: Save Docker image
+        run: |
+          docker save myapp:latest -o myapp.tar
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v3
         with:
-          name: python-app
-          path: |
-            release.zip
-            !venv/
+          name: docker-image
+          path: myapp.tar
 
   deploy:
     runs-on: ubuntu-latest
@@ -45,22 +43,24 @@ jobs:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
 
-
-
     steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: python-app
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      - name: Unzip artifact for deployment
-        run: unzip release.zip
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: |
+          docker load -i myapp.tar
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
-
         with:
           app-name: 'di-training-hungnd'
           slot-name: 'Production'
           publish-profile: ${{ secrets.AzureAppService_PublishProfile_5a3668db4ad24ca8a878c2e63d3b4c8e }}
+          images: myapp:latest
