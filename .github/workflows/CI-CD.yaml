@@ -9,6 +9,7 @@ on:
     branches:
       - main
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,17 +25,13 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t myapp:latest .
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/myapp:latest .
 
-      - name: Save Docker image
-        run: |
-          docker save myapp:latest -o myapp.tar
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
-      - name: Upload Docker image artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: docker-image
-          path: myapp.tar
+      - name: Push Docker image to Docker Hub
+        run: docker push ${{ secrets.DOCKER_HUB_USERNAME }}/myapp:latest
 
   deploy:
     runs-on: ubuntu-latest
@@ -45,16 +42,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: docker-image
-
-      - name: Load Docker image
-        run: |
-          docker load -i myapp.tar
+        uses: actions/checkout@v4
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
@@ -63,4 +51,4 @@ jobs:
           app-name: 'di-training-hungnd'
           slot-name: 'Production'
           publish-profile: ${{ secrets.AzureAppService_PublishProfile_5a3668db4ad24ca8a878c2e63d3b4c8e }}
-          images: myapp:latest
+          images: ${{ secrets.DOCKER_HUB_USERNAME }}/myapp:latest
