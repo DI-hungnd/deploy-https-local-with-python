@@ -2,14 +2,22 @@ import uvicorn
 import os
 
 from fastapi import FastAPI
+from starlette.requests import Request
+from starlette.templating import Jinja2Templates
 
 ROOT_PATH = os.path.abspath(os.path.dirname(__file__))
 app = FastAPI()
-
+templates = Jinja2Templates(directory=f"{ROOT_PATH}/static/templates")
 
 @app.get("/")
-async def hello():
-    return {"success": True}
+async def index(request: Request):
+    return templates.TemplateResponse(
+        request=request, name="index.html"
+    )
+
+@app.get("/health-check")
+async def health_check():
+    return {"status": "ok"}
 
 
 if __name__ == '__main__':
